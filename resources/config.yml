@@ -16,7 +16,7 @@ compass-open:
   # If you want it to only trigger when the compass has a specific custom name, set this true.
   # (Useful if players can obtain normal compasses.)
   require-custom-name: true
-  custom-name: "§aNavigator"
+  custom-name: "§a§lNavigator"
 
 
 messages:
