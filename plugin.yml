@@ -1,0 +1,13 @@
+name: HubChestSelector
+main: HubChestSelector\Main
+version: 1.0.0
+api: 5.0.0
+author: You
+commands:
+  hub:
+    description: Open the hub selector
+    usage: "/hub"
+    permission: hubselector.use
+permissions:
+  hubselector.use:
+    default: true
