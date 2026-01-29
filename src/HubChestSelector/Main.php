@@ -10,8 +10,6 @@ use muqsit\invmenu\transaction\InvMenuTransaction;
 use muqsit\invmenu\transaction\InvMenuTransactionResult;
 use pocketmine\command\Command;
 use pocketmine\command\CommandSender;
-use pocketmine\event\EventHandler;
-use pocketmine\event\EventPriority;
 use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerInteractEvent;
 use pocketmine\item\Item;
@@ -48,9 +46,12 @@ final class Main extends PluginBase implements Listener{
     }
 
     /**
-     * Runs even if another plugin cancels the interact event (Navigator/hub items often do).
+     * NavigatorCompass integration:
+     * Right-clicking the configured item opens the selector.
+     *
+     * @priority HIGHEST
+     * @handleCancelled true
      */
-    #[EventHandler(priority: EventPriority::HIGHEST, handleCancelled: true)]
     public function onPlayerInteract(PlayerInteractEvent $event) : void{
         if(!(bool)$this->cfg->getNested("compass-open.enabled", true)){
             return;
@@ -59,7 +60,7 @@ final class Main extends PluginBase implements Listener{
         // Right-click detection WITHOUT relying on isRightClick()
         $action = $event->getAction();
 
-        // Use constants if they exist; otherwise fall back to the common numeric values.
+        // Use constants if they exist; otherwise fall back to common numeric values
         $rcAir = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_AIR") ? PlayerInteractEvent::RIGHT_CLICK_AIR : 3;
         $rcBlock = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_BLOCK") ? PlayerInteractEvent::RIGHT_CLICK_BLOCK : 1;
 
@@ -85,7 +86,7 @@ final class Main extends PluginBase implements Listener{
             }
         }
 
-        // Stop other interactions and open our GUI
+        // Stop other interactions (like opening blocks) and open our GUI
         $event->cancel();
         $this->openMainMenu($player);
     }
@@ -97,9 +98,12 @@ final class Main extends PluginBase implements Listener{
         $inv = $menu->getInventory();
         $inv->clearAll();
 
+        // Profile / Friends / Parties (Coming soon)
         $inv->setItem(10, $this->namedItem($this->item("minecraft:player_head"), "§bProfile", ["§7Coming soon"]));
         $inv->setItem(12, $this->namedItem($this->item("minecraft:book"), "§dFriends", ["§7Coming soon"]));
         $inv->setItem(14, $this->namedItem($this->item("minecraft:name_tag"), "§eParties", ["§7Coming soon"]));
+
+        // Games (active)
         $inv->setItem(16, $this->namedItem($this->item("minecraft:compass"), "§aGames", ["§7Open games menu", "", "§eClick"]));
 
         $menu->setListener(function(InvMenuTransaction $tx) : InvMenuTransactionResult{
@@ -132,14 +136,18 @@ final class Main extends PluginBase implements Listener{
         $inv = $menu->getInventory();
         $inv->clearAll();
 
+        // SMP (active)
         $inv->setItem(11, $this->namedItem(
             $this->item("minecraft:grass_block"),
             "§aSMP",
             ["§7Survival world", "", "§eClick to join"]
         ));
 
+        // BedWars (coming soon)
         $inv->setItem(13, $this->namedItem($this->item("minecraft:red_bed"), "§cBedWars - Solos", ["§7Coming soon"]));
         $inv->setItem(15, $this->namedItem($this->item("minecraft:red_bed"), "§cBedWars - Duos", ["§7Coming soon"]));
+
+        // Back
         $inv->setItem(22, $this->namedItem($this->item("minecraft:arrow"), "§7Back", ["§eReturn to selector"]));
 
         $menu->setListener(function(InvMenuTransaction $tx) : InvMenuTransactionResult{
@@ -148,6 +156,7 @@ final class Main extends PluginBase implements Listener{
 
             if($slot === 11){
                 $player->removeCurrentWindow();
+
                 $server = (string)$this->cfg->getNested("servers.smp", "smp");
                 $this->dispatchTransfer($player, $server);
             }elseif($slot === 13 || $slot === 15){
@@ -168,6 +177,7 @@ final class Main extends PluginBase implements Listener{
     private function dispatchTransfer(Player $player, string $serverName) : void{
         $template = (string)$this->cfg->get("transfer-command", "server {server}");
         $cmd = str_replace("{server}", $serverName, $template);
+
         $this->getServer()->dispatchCommand($player, $cmd);
     }
 
