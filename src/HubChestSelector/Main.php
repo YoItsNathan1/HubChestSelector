@@ -45,37 +45,39 @@ final class Main extends PluginBase implements Listener{
         return false;
     }
 
-    /** Compass right-click opener (works alongside NavigatorCompass) */
+    /**
+     * NavigatorCompass integration:
+     * If NavigatorCompass gives players a compass, right-clicking it opens the selector.
+     */
     public function onPlayerInteract(PlayerInteractEvent $event) : void{
-        if(!$this->cfg->getNested("compass-open.enabled", true)){
+        if(!(bool)$this->cfg->getNested("compass-open.enabled", true)){
+            return;
+        }
+
+        // Lint-safe right-click check
+        if(!method_exists($event, "isRightClick") || !$event->isRightClick()){
             return;
         }
 
         $player = $event->getPlayer();
-        $item = $event->getItem();
+        $held = $event->getItem();
 
-        // Only react to right-click actions
-        $action = $event->getAction();
-        if($action !== PlayerInteractEvent::RIGHT_CLICK_AIR && $action !== PlayerInteractEvent::RIGHT_CLICK_BLOCK){
-            return;
-        }
+        $expectedId = (string)$this->cfg->getNested("compass-open.item", "minecraft:compass");
+        $expectedItem = $this->item($expectedId);
 
-        $expected = (string)$this->cfg->getNested("compass-open.item", "minecraft:compass");
-        $expectedItem = $this->item($expected);
-
-        if($item->getTypeId() !== $expectedItem->getTypeId()){
+        if($held->getTypeId() !== $expectedItem->getTypeId()){
             return;
         }
 
         $requireName = (bool)$this->cfg->getNested("compass-open.require-custom-name", false);
         if($requireName){
             $need = (string)$this->cfg->getNested("compass-open.custom-name", "§aNavigator");
-            if($item->getCustomName() !== $need){
+            if($held->getCustomName() !== $need){
                 return;
             }
         }
 
-        // Stop other interactions (optional but usually desired in hubs)
+        // Prevent interaction (stops blocks opening etc.)
         $event->cancel();
 
         $this->openMainMenu($player);
@@ -88,10 +90,12 @@ final class Main extends PluginBase implements Listener{
         $inv = $menu->getInventory();
         $inv->clearAll();
 
-        // Slots: Profile / Friends / Parties / Games
+        // Profile / Friends / Parties (Coming soon)
         $inv->setItem(10, $this->namedItem($this->item("minecraft:player_head"), "§bProfile", ["§7Coming soon"]));
         $inv->setItem(12, $this->namedItem($this->item("minecraft:book"), "§dFriends", ["§7Coming soon"]));
         $inv->setItem(14, $this->namedItem($this->item("minecraft:name_tag"), "§eParties", ["§7Coming soon"]));
+
+        // Games (active)
         $inv->setItem(16, $this->namedItem($this->item("minecraft:compass"), "§aGames", ["§7Open games menu", "", "§eClick"]));
 
         $menu->setListener(function(InvMenuTransaction $tx) : InvMenuTransactionResult{
@@ -105,7 +109,6 @@ final class Main extends PluginBase implements Listener{
                 }
                 $this->openGamesMenu($player);
             }elseif($slot === 10 || $slot === 12 || $slot === 14){
-                // Coming soon feedback
                 $msg = (string)$this->cfg->getNested("messages.coming-soon", "§7Coming soon!");
                 if($msg !== ""){
                     $player->sendMessage($msg);
@@ -132,7 +135,7 @@ final class Main extends PluginBase implements Listener{
             ["§7Survival world", "", "§eClick to join"]
         ));
 
-        // Coming soon (no transfer)
+        // BedWars (Coming soon)
         $inv->setItem(13, $this->namedItem($this->item("minecraft:red_bed"), "§cBedWars - Solos", ["§7Coming soon"]));
         $inv->setItem(15, $this->namedItem($this->item("minecraft:red_bed"), "§cBedWars - Duos", ["§7Coming soon"]));
 
@@ -144,7 +147,6 @@ final class Main extends PluginBase implements Listener{
             $slot = $tx->getAction()->getSlot();
 
             if($slot === 11){
-                // Close first, then transfer command
                 $player->removeCurrentWindow();
 
                 $server = (string)$this->cfg->getNested("servers.smp", "smp");
@@ -168,7 +170,6 @@ final class Main extends PluginBase implements Listener{
         $template = (string)$this->cfg->get("transfer-command", "server {server}");
         $cmd = str_replace("{server}", $serverName, $template);
 
-        // Execute as player so it works with Waterdog-style /server
         $this->getServer()->dispatchCommand($player, $cmd);
     }
 
