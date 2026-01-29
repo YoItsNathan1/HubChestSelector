@@ -1,8 +1,11 @@
---- # Poggit-CI Manifest. Open the CI at https://poggit.pmmp.io/ci/YoItsNathan1/HubChestSelector
+--- 
 build-by-default: true
 branches:
-- main
+  - main
 projects:
   HubChestSelector:
     path: ""
+    libs:
+      - src: muqsit/InvMenu/InvMenu
+        version: ^4.7.3
 ...
