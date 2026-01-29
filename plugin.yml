@@ -1,7 +1,7 @@
 name: HubChestSelector
 main: HubChestSelector\Main
 version: 1.0.0
-api: 5.0.0
+api: 5.36.0
 
 commands:
   hub:
