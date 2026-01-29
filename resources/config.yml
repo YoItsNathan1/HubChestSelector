@@ -1,0 +1,15 @@
+# What command should be run to send the player to a Waterdog server?
+# Waterdog's default transfer command is /server <name>
+# (this plugin dispatches it as the player)
+transfer-command: "server {server}"
+
+menus:
+  main:
+    title: "§l§bSelector"
+  games:
+    title: "§l§aGames"
+
+servers:
+  smp: "smp"
+  bedwars_solo: "bedwars_solo"
+  bedwars_duos: "bedwars_duos"
