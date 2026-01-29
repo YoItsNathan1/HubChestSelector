@@ -44,12 +44,12 @@ final class Main extends PluginBase{
         $inv = $menu->getInventory();
         $inv->clearAll();
 
-        // Profile / Friends / Parties are "Coming soon" (do nothing)
+        // Coming soon (no action)
         $inv->setItem(10, $this->namedItem($this->item("minecraft:player_head"), "§bProfile", ["§7Coming soon"]));
         $inv->setItem(12, $this->namedItem($this->item("minecraft:book"), "§dFriends", ["§7Coming soon"]));
         $inv->setItem(14, $this->namedItem($this->item("minecraft:name_tag"), "§eParties", ["§7Coming soon"]));
 
-        // Games opens the games panel
+        // Games (active) - opens games panel
         $inv->setItem(16, $this->namedItem($this->item("minecraft:compass"), "§aGames", ["§7Open games menu", "", "§eClick"]));
 
         $menu->setListener(function(InvMenuTransaction $tx) : InvMenuTransactionResult{
@@ -59,7 +59,7 @@ final class Main extends PluginBase{
                 $this->openGamesMenu($tx->getPlayer());
             }
 
-            // Always discard so players can't take items
+            // Prevent item movement
             return $tx->discard();
         });
 
@@ -80,11 +80,11 @@ final class Main extends PluginBase{
             ["§7Survival world", "", "§eClick to join"]
         ));
 
-        // BedWars (coming soon - do nothing)
+        // Coming soon (no action)
         $inv->setItem(13, $this->namedItem($this->item("minecraft:red_bed"), "§cBedWars - Solos", ["§7Coming soon"]));
         $inv->setItem(15, $this->namedItem($this->item("minecraft:red_bed"), "§cBedWars - Duos", ["§7Coming soon"]));
 
-        // Back to main selector
+        // Back button
         $inv->setItem(22, $this->namedItem($this->item("minecraft:arrow"), "§7Back", ["§eReturn to selector"]));
 
         $menu->setListener(function(InvMenuTransaction $tx) : InvMenuTransactionResult{
@@ -92,16 +92,16 @@ final class Main extends PluginBase{
             $slot = $tx->getAction()->getSlot();
 
             if($slot === 11){
-                // Close the menu then run the Waterdog command as the player
+                // Close menu then send command (Waterdog)
                 $player->removeCurrentWindow();
 
-                // Change "smp" if your Waterdog backend server name is different
+                // Change 'smp' if your Waterdog backend name differs
                 $this->getServer()->dispatchCommand($player, "server smp");
             }elseif($slot === 22){
                 $this->openMainMenu($player);
             }
 
-            // Discard so nothing can be moved
+            // Prevent item movement
             return $tx->discard();
         });
 
@@ -109,11 +109,10 @@ final class Main extends PluginBase{
     }
 
     private function item(string $id) : Item{
-        // Parses "minecraft:..." item IDs in a version-tolerant way
-        $item = StringToItemParser::getInstance()->parse($id);
+        $parser = StringToItemParser::getInstance();
 
-        // Fallback so it never returns null (shouldn't happen for vanilla IDs)
-        return $item ?? StringToItemParser::getInstance()->parse("minecraft:stone") ?? new Item();
+        // Requested item, or stone fallback (vanilla)
+        return $parser->parse($id) ?? $parser->parse("minecraft:stone");
     }
 
     private function namedItem(Item $item, string $name, array $lore = []) : Item{
