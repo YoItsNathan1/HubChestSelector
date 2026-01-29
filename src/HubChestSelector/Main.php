@@ -10,8 +10,8 @@ use muqsit\invmenu\transaction\InvMenuTransaction;
 use muqsit\invmenu\transaction\InvMenuTransactionResult;
 use pocketmine\command\Command;
 use pocketmine\command\CommandSender;
-use pocketmine\item\ItemFactory;
 use pocketmine\item\Item;
+use pocketmine\item\StringToItemParser;
 use pocketmine\player\Player;
 use pocketmine\plugin\PluginBase;
 
@@ -44,20 +44,22 @@ final class Main extends PluginBase{
         $inv = $menu->getInventory();
         $inv->clearAll();
 
+        // Profile / Friends / Parties are "Coming soon" (do nothing)
         $inv->setItem(10, $this->namedItem($this->item("minecraft:player_head"), "§bProfile", ["§7Coming soon"]));
         $inv->setItem(12, $this->namedItem($this->item("minecraft:book"), "§dFriends", ["§7Coming soon"]));
         $inv->setItem(14, $this->namedItem($this->item("minecraft:name_tag"), "§eParties", ["§7Coming soon"]));
+
+        // Games opens the games panel
         $inv->setItem(16, $this->namedItem($this->item("minecraft:compass"), "§aGames", ["§7Open games menu", "", "§eClick"]));
 
         $menu->setListener(function(InvMenuTransaction $tx) : InvMenuTransactionResult{
-            $player = $tx->getPlayer();
             $slot = $tx->getAction()->getSlot();
 
             if($slot === 16){
-                $this->openGamesMenu($player);
+                $this->openGamesMenu($tx->getPlayer());
             }
-            // Other buttons do nothing (coming soon)
 
+            // Always discard so players can't take items
             return $tx->discard();
         });
 
@@ -71,9 +73,18 @@ final class Main extends PluginBase{
         $inv = $menu->getInventory();
         $inv->clearAll();
 
-        $inv->setItem(11, $this->namedItem($this->item("minecraft:grass_block"), "§aSMP", ["§7Survival world", "", "§eClick to join"]));
+        // SMP (active)
+        $inv->setItem(11, $this->namedItem(
+            $this->item("minecraft:grass_block"),
+            "§aSMP",
+            ["§7Survival world", "", "§eClick to join"]
+        ));
+
+        // BedWars (coming soon - do nothing)
         $inv->setItem(13, $this->namedItem($this->item("minecraft:red_bed"), "§cBedWars - Solos", ["§7Coming soon"]));
         $inv->setItem(15, $this->namedItem($this->item("minecraft:red_bed"), "§cBedWars - Duos", ["§7Coming soon"]));
+
+        // Back to main selector
         $inv->setItem(22, $this->namedItem($this->item("minecraft:arrow"), "§7Back", ["§eReturn to selector"]));
 
         $menu->setListener(function(InvMenuTransaction $tx) : InvMenuTransactionResult{
@@ -81,16 +92,16 @@ final class Main extends PluginBase{
             $slot = $tx->getAction()->getSlot();
 
             if($slot === 11){
-                // Close the menu then run the Waterdog server command as the player.
+                // Close the menu then run the Waterdog command as the player
                 $player->removeCurrentWindow();
 
-                // Default Waterdog command is /server <name>
-                // Change "smp" if your backend name differs.
+                // Change "smp" if your Waterdog backend server name is different
                 $this->getServer()->dispatchCommand($player, "server smp");
             }elseif($slot === 22){
                 $this->openMainMenu($player);
             }
 
+            // Discard so nothing can be moved
             return $tx->discard();
         });
 
@@ -98,8 +109,11 @@ final class Main extends PluginBase{
     }
 
     private function item(string $id) : Item{
-        // Creates item from string ID in a version-tolerant way
-        return ItemFactory::getInstance()->get($id);
+        // Parses "minecraft:..." item IDs in a version-tolerant way
+        $item = StringToItemParser::getInstance()->parse($id);
+
+        // Fallback so it never returns null (shouldn't happen for vanilla IDs)
+        return $item ?? StringToItemParser::getInstance()->parse("minecraft:stone") ?? new Item();
     }
 
     private function namedItem(Item $item, string $name, array $lore = []) : Item{
