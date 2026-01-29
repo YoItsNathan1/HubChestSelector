@@ -1,1 +1,11 @@
-
+--- 
+build-by-default: true
+branches:
+  - main
+projects:
+  HubChestSelector:
+    path: ""
+    libs:
+      - src: muqsit/InvMenu/InvMenu
+        version: ^4.7.3
+...
