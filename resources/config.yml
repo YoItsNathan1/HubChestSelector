@@ -15,8 +15,9 @@ compass-open:
   item: "minecraft:compass"
   # If you want it to only trigger when the compass has a specific custom name, set this true.
   # (Useful if players can obtain normal compasses.)
-  require-custom-name: false
+  require-custom-name: true
   custom-name: "§aNavigator"
+
 
 messages:
   coming-soon: "§7Coming soon!"
