@@ -6,26 +6,20 @@ namespace HubChestSelector;
 
 use muqsit\invmenu\InvMenu;
 use muqsit\invmenu\InvMenuHandler;
+use muqsit\invmenu\transaction\InvMenuTransaction;
+use muqsit\invmenu\transaction\InvMenuTransactionResult;
 use pocketmine\command\Command;
 use pocketmine\command\CommandSender;
-use pocketmine\item\VanillaItems;
+use pocketmine\item\ItemFactory;
+use pocketmine\item\Item;
 use pocketmine\player\Player;
 use pocketmine\plugin\PluginBase;
-use pocketmine\utils\Config;
-use pocketmine\utils\TextFormat;
-use pocketmine\inventory\transaction\action\SlotChangeAction;
-use pocketmine\inventory\transaction\InventoryTransaction;
-use pocketmine\inventory\transaction\TransactionBuilder;
 
 final class Main extends PluginBase{
 
-    private Config $cfg;
-
     protected function onEnable() : void{
         $this->saveDefaultConfig();
-        $this->cfg = $this->getConfig();
 
-        // InvMenu needs to be registered once before use
         if(!InvMenuHandler::isRegistered()){
             InvMenuHandler::register($this);
         }
@@ -44,102 +38,73 @@ final class Main extends PluginBase{
     }
 
     private function openMainMenu(Player $player) : void{
-        $title = (string)($this->cfg->getNested("menus.main.title", "Selector"));
-
         $menu = InvMenu::create(InvMenu::TYPE_CHEST);
-        $menu->setName($title);
+        $menu->setName("§l§bSelector");
 
         $inv = $menu->getInventory();
         $inv->clearAll();
 
-        // Slots (0-26). Feel free to rearrange.
-        $inv->setItem(10, $this->namedItem(VanillaItems::PLAYER_HEAD(), "§bProfile", ["§7Coming soon"]));
-        $inv->setItem(12, $this->namedItem(VanillaItems::BOOK(), "§dFriends", ["§7Coming soon"]));
-        $inv->setItem(14, $this->namedItem(VanillaItems::NAME_TAG(), "§eParties", ["§7Coming soon"]));
-        $inv->setItem(16, $this->namedItem(VanillaItems::COMPASS(), "§aGames", ["§7Open games menu", "", "§eClick"]));
+        $inv->setItem(10, $this->namedItem($this->item("minecraft:player_head"), "§bProfile", ["§7Coming soon"]));
+        $inv->setItem(12, $this->namedItem($this->item("minecraft:book"), "§dFriends", ["§7Coming soon"]));
+        $inv->setItem(14, $this->namedItem($this->item("minecraft:name_tag"), "§eParties", ["§7Coming soon"]));
+        $inv->setItem(16, $this->namedItem($this->item("minecraft:compass"), "§aGames", ["§7Open games menu", "", "§eClick"]));
 
-        $menu->setListener(function(InventoryTransaction $tx) use ($player) : \muqsit\invmenu\transaction\InvMenuTransactionResult{
-            $action = $tx->getActions()[0] ?? null;
-            if($action instanceof SlotChangeAction){
-                $slot = $action->getSlot();
-                if($slot === 16){
-                    // Open Games panel
-                    $this->openGamesMenu($player);
-                }
-                // Profile/Friends/Parties do nothing (coming soon)
+        $menu->setListener(function(InvMenuTransaction $tx) : InvMenuTransactionResult{
+            $player = $tx->getPlayer();
+            $slot = $tx->getAction()->getSlot();
+
+            if($slot === 16){
+                $this->openGamesMenu($player);
             }
-            return \muqsit\invmenu\transaction\InvMenuTransactionResult::discard();
+            // Other buttons do nothing (coming soon)
+
+            return $tx->discard();
         });
 
         $menu->send($player);
     }
 
     private function openGamesMenu(Player $player) : void{
-        $title = (string)($this->cfg->getNested("menus.games.title", "Games"));
-
         $menu = InvMenu::create(InvMenu::TYPE_CHEST);
-        $menu->setName($title);
+        $menu->setName("§l§aGames");
 
         $inv = $menu->getInventory();
         $inv->clearAll();
 
-        // SMP
-        $inv->setItem(11, $this->namedItem(
-            VanillaItems::GRASS_BLOCK(),
-            "§aSMP",
-            ["§7Survival world", "", "§eClick to join"]
-        ));
+        $inv->setItem(11, $this->namedItem($this->item("minecraft:grass_block"), "§aSMP", ["§7Survival world", "", "§eClick to join"]));
+        $inv->setItem(13, $this->namedItem($this->item("minecraft:red_bed"), "§cBedWars - Solos", ["§7Coming soon"]));
+        $inv->setItem(15, $this->namedItem($this->item("minecraft:red_bed"), "§cBedWars - Duos", ["§7Coming soon"]));
+        $inv->setItem(22, $this->namedItem($this->item("minecraft:arrow"), "§7Back", ["§eReturn to selector"]));
 
-        // Coming soon BedWars
-        $inv->setItem(13, $this->namedItem(
-            VanillaItems::RED_BED(),
-            "§cBedWars - Solos",
-            ["§7Coming soon"]
-        ));
-        $inv->setItem(15, $this->namedItem(
-            VanillaItems::RED_BED(),
-            "§cBedWars - Duos",
-            ["§7Coming soon"]
-        ));
+        $menu->setListener(function(InvMenuTransaction $tx) : InvMenuTransactionResult{
+            $player = $tx->getPlayer();
+            $slot = $tx->getAction()->getSlot();
 
-        // Back button
-        $inv->setItem(22, $this->namedItem(
-            VanillaItems::ARROW(),
-            "§7Back",
-            ["§eReturn to selector"]
-        ));
+            if($slot === 11){
+                // Close the menu then run the Waterdog server command as the player.
+                $player->removeCurrentWindow();
 
-        $menu->setListener(function(InventoryTransaction $tx) use ($player) : \muqsit\invmenu\transaction\InvMenuTransactionResult{
-            $action = $tx->getActions()[0] ?? null;
-            if($action instanceof SlotChangeAction){
-                $slot = $action->getSlot();
-
-                if($slot === 11){
-                    // Close & transfer to SMP
-                    $this->dispatchTransfer($player, (string)$this->cfg->getNested("servers.smp", "smp"));
-                    $player->removeCurrentWindow();
-                }elseif($slot === 22){
-                    $this->openMainMenu($player);
-                }
-                // BedWars slots do nothing (coming soon)
+                // Default Waterdog command is /server <name>
+                // Change "smp" if your backend name differs.
+                $this->getServer()->dispatchCommand($player, "server smp");
+            }elseif($slot === 22){
+                $this->openMainMenu($player);
             }
-            return \muqsit\invmenu\transaction\InvMenuTransactionResult::discard();
+
+            return $tx->discard();
         });
 
         $menu->send($player);
     }
 
-    private function dispatchTransfer(Player $player, string $serverName) : void{
-        $template = (string)$this->cfg->get("transfer-command", "server {server}");
-        $cmd = str_replace("{server}", $serverName, $template);
-
-        // Dispatch as the player, so it works with Waterdog's /server command
-        $this->getServer()->dispatchCommand($player, $cmd);
+    private function item(string $id) : Item{
+        // Creates item from string ID in a version-tolerant way
+        return ItemFactory::getInstance()->get($id);
     }
 
-    private function namedItem(\pocketmine\item\Item $item, string $name, array $lore = []) : \pocketmine\item\Item{
+    private function namedItem(Item $item, string $name, array $lore = []) : Item{
         $item->setCustomName($name);
-        if(!empty($lore)){
+        if($lore !== []){
             $item->setLore($lore);
         }
         return $item;
