@@ -46,8 +46,7 @@ final class Main extends PluginBase implements Listener{
     }
 
     /**
-     * NavigatorCompass integration:
-     * Right-clicking the configured item opens the selector.
+     * Opens selector on right-click of configured item (NavigatorCompass compatible).
      *
      * @priority HIGHEST
      * @handleCancelled true
@@ -57,10 +56,8 @@ final class Main extends PluginBase implements Listener{
             return;
         }
 
-        // Right-click detection WITHOUT relying on isRightClick()
+        // Right-click detection without isRightClick()
         $action = $event->getAction();
-
-        // Use constants if they exist; otherwise fall back to common numeric values
         $rcAir = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_AIR") ? PlayerInteractEvent::RIGHT_CLICK_AIR : 3;
         $rcBlock = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_BLOCK") ? PlayerInteractEvent::RIGHT_CLICK_BLOCK : 1;
 
@@ -86,7 +83,6 @@ final class Main extends PluginBase implements Listener{
             }
         }
 
-        // Stop other interactions (like opening blocks) and open our GUI
         $event->cancel();
         $this->openMainMenu($player);
     }
@@ -98,12 +94,9 @@ final class Main extends PluginBase implements Listener{
         $inv = $menu->getInventory();
         $inv->clearAll();
 
-        // Profile / Friends / Parties (Coming soon)
         $inv->setItem(10, $this->namedItem($this->item("minecraft:player_head"), "§bProfile", ["§7Coming soon"]));
         $inv->setItem(12, $this->namedItem($this->item("minecraft:book"), "§dFriends", ["§7Coming soon"]));
         $inv->setItem(14, $this->namedItem($this->item("minecraft:name_tag"), "§eParties", ["§7Coming soon"]));
-
-        // Games (active)
         $inv->setItem(16, $this->namedItem($this->item("minecraft:compass"), "§aGames", ["§7Open games menu", "", "§eClick"]));
 
         $menu->setListener(function(InvMenuTransaction $tx) : InvMenuTransactionResult{
@@ -136,18 +129,14 @@ final class Main extends PluginBase implements Listener{
         $inv = $menu->getInventory();
         $inv->clearAll();
 
-        // SMP (active)
         $inv->setItem(11, $this->namedItem(
             $this->item("minecraft:grass_block"),
             "§aSMP",
             ["§7Survival world", "", "§eClick to join"]
         ));
 
-        // BedWars (coming soon)
         $inv->setItem(13, $this->namedItem($this->item("minecraft:red_bed"), "§cBedWars - Solos", ["§7Coming soon"]));
         $inv->setItem(15, $this->namedItem($this->item("minecraft:red_bed"), "§cBedWars - Duos", ["§7Coming soon"]));
-
-        // Back
         $inv->setItem(22, $this->namedItem($this->item("minecraft:arrow"), "§7Back", ["§eReturn to selector"]));
 
         $menu->setListener(function(InvMenuTransaction $tx) : InvMenuTransactionResult{
@@ -156,9 +145,7 @@ final class Main extends PluginBase implements Listener{
 
             if($slot === 11){
                 $player->removeCurrentWindow();
-
-                $server = (string)$this->cfg->getNested("servers.smp", "smp");
-                $this->dispatchTransfer($player, $server);
+                $this->transferToConfiguredServer($player, "smp");
             }elseif($slot === 13 || $slot === 15){
                 $msg = (string)$this->cfg->getNested("messages.coming-soon", "§7Coming soon!");
                 if($msg !== ""){
@@ -174,11 +161,23 @@ final class Main extends PluginBase implements Listener{
         $menu->send($player);
     }
 
-    private function dispatchTransfer(Player $player, string $serverName) : void{
-        $template = (string)$this->cfg->get("transfer-command", "server {server}");
-        $cmd = str_replace("{server}", $serverName, $template);
+    private function transferToConfiguredServer(Player $player, string $key) : void{
+        $serverName = (string)$this->cfg->getNested("servers.$key", $key);
+        $template = (string)$this->cfg->get("transfer-command", "transfer {server}");
+        $cmdLine = str_replace("{server}", $serverName, $template);
 
-        $this->getServer()->dispatchCommand($player, $cmd);
+        // Verify the base command exists on THIS PocketMine backend
+        $base = strtolower(trim(explode(" ", trim($cmdLine))[0] ?? ""));
+        if($base === "" || $this->getServer()->getCommandMap()->getCommand($base) === null){
+            $fail = (string)$this->cfg->getNested("messages.transfer-failed", "§cTransfer command not found.");
+            if($fail !== ""){
+                $player->sendMessage($fail);
+            }
+            return;
+        }
+
+        // Execute as player so bridge plugins that read sender context work correctly
+        $this->getServer()->dispatchCommand($player, $cmdLine);
     }
 
     private function item(string $id) : Item{
