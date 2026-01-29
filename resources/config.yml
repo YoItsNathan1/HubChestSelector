@@ -1,15 +1,23 @@
-# What command should be run to send the player to a Waterdog server?
-# Waterdog's default transfer command is /server <name>
-# (this plugin dispatches it as the player)
+# What command should be executed to transfer players through Waterdog?
+# Default Waterdog is usually: /server <name>
 transfer-command: "server {server}"
 
-menus:
-  main:
-    title: "§l§bSelector"
-  games:
-    title: "§l§aGames"
-
+# Server names as Waterdog knows them
 servers:
   smp: "smp"
   bedwars_solo: "bedwars_solo"
   bedwars_duos: "bedwars_duos"
+
+# Compass integration:
+# If NavigatorCompass gives players a compass, this plugin can open the GUI when they right-click it.
+compass-open:
+  enabled: true
+  item: "minecraft:compass"
+  # If you want it to only trigger when the compass has a specific custom name, set this true.
+  # (Useful if players can obtain normal compasses.)
+  require-custom-name: false
+  custom-name: "§aNavigator"
+
+messages:
+  coming-soon: "§7Coming soon!"
+  opening-games: "§aOpening Games…"
