@@ -46,8 +46,8 @@ final class Main extends PluginBase implements Listener{
     }
 
     /**
-     * IMPORTANT: LOWEST priority so we cancel BEFORE other plugins (NavigatorCompass etc.)
-     * This prevents a different menu opening first.
+     * Handle player interaction with both RIGHT_CLICK_AIR and RIGHT_CLICK_BLOCK.
+     * We use priority LOWEST to make sure this is processed before any other plugins.
      *
      * @priority LOWEST
      * @handleCancelled true
@@ -57,9 +57,10 @@ final class Main extends PluginBase implements Listener{
             return;
         }
 
-        // Right-click detection (both air or block)
+        // Ensure we handle both RIGHT_CLICK_AIR and RIGHT_CLICK_BLOCK
         $action = $event->getAction();
 
+        // Detect right-click air or block based on PMMP version compatibility
         $rcAir = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_AIR") ? PlayerInteractEvent::RIGHT_CLICK_AIR : 3;
         $rcBlock = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_BLOCK") ? PlayerInteractEvent::RIGHT_CLICK_BLOCK : 1;
 
@@ -90,7 +91,7 @@ final class Main extends PluginBase implements Listener{
         // Cancel the event to prevent other menus from opening (like NavigatorCompass)
         $event->cancel();
 
-        // Open our custom menu
+        // Open the custom menu
         $this->openMainMenu($player);
     }
 
