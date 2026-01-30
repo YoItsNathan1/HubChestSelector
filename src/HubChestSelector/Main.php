@@ -46,7 +46,7 @@ final class Main extends PluginBase implements Listener{
     }
 
     /**
-     * Opens selector on right-click of configured item (NavigatorCompass compatible).
+     * Opens selector on right-click (AIR or BLOCK) of configured item (NavigatorCompass compatible).
      *
      * @priority HIGHEST
      * @handleCancelled true
@@ -56,8 +56,9 @@ final class Main extends PluginBase implements Listener{
             return;
         }
 
-        // Right-click detection without isRightClick()
+        // Right-click detection (air OR block) without isRightClick()
         $action = $event->getAction();
+
         $rcAir = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_AIR") ? PlayerInteractEvent::RIGHT_CLICK_AIR : 3;
         $rcBlock = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_BLOCK") ? PlayerInteractEvent::RIGHT_CLICK_BLOCK : 1;
 
@@ -83,6 +84,7 @@ final class Main extends PluginBase implements Listener{
             }
         }
 
+        // Prevent opening chests/doors etc.
         $event->cancel();
         $this->openMainMenu($player);
     }
