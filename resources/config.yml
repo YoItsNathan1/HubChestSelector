@@ -12,7 +12,7 @@ servers:
 compass-open:
   enabled: true
   item: "minecraft:compass"
-  require-custom-name: false
+  require-custom-name: true
   custom-name: "§aNavigator"
 
 messages:
