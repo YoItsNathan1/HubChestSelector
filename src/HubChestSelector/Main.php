@@ -18,24 +18,24 @@ use pocketmine\player\Player;
 use pocketmine\plugin\PluginBase;
 use pocketmine\utils\Config;
 
-final class Main extends PluginBase implements Listener{
+final class Main extends PluginBase implements Listener {
 
     private Config $cfg;
 
-    protected function onEnable() : void{
+    protected function onEnable(): void {
         $this->saveDefaultConfig();
         $this->cfg = $this->getConfig();
 
-        if(!InvMenuHandler::isRegistered()){
+        if (!InvMenuHandler::isRegistered()) {
             InvMenuHandler::register($this);
         }
 
         $this->getServer()->getPluginManager()->registerEvents($this, $this);
     }
 
-    public function onCommand(CommandSender $sender, Command $command, string $label, array $args) : bool{
-        if($command->getName() === "hub"){
-            if(!$sender instanceof Player){
+    public function onCommand(CommandSender $sender, Command $command, string $label, array $args): bool {
+        if ($command->getName() === "hub") {
+            if (!$sender instanceof Player) {
                 $sender->sendMessage("Run this in-game.");
                 return true;
             }
@@ -47,61 +47,53 @@ final class Main extends PluginBase implements Listener{
 
     /**
      * Handle player interaction with both RIGHT_CLICK_AIR and RIGHT_CLICK_BLOCK.
-     * We use priority LOWEST to make sure this is processed before any other plugins.
      *
      * @priority LOWEST
      * @handleCancelled true
      */
-    public function onPlayerInteract(PlayerInteractEvent $event) : void{
-        if(!(bool)$this->cfg->getNested("compass-open.enabled", true)){
+    public function onPlayerInteract(PlayerInteractEvent $event): void {
+        if (!(bool)$this->cfg->getNested("compass-open.enabled", true)) {
             return;
         }
 
-        // Ensure we handle both RIGHT_CLICK_AIR and RIGHT_CLICK_BLOCK
+        // Right-click detection for both air and block
         $action = $event->getAction();
-
-        // Detect right-click air or block based on PMMP version compatibility
         $rcAir = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_AIR") ? PlayerInteractEvent::RIGHT_CLICK_AIR : null;
         $rcBlock = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_BLOCK") ? PlayerInteractEvent::RIGHT_CLICK_BLOCK : null;
 
         $isRightClick =
             ($rcAir !== null && $action === $rcAir) ||
-            ($rcBlock !== null && $action === $rcBlock) ||
-            // Fallback values used by many builds (covers weird cases where constants aren't present/stubbed)
-            $action === 1 || $action === 3;
+            ($rcBlock !== null && $action === $rcBlock);
 
-        if(!$isRightClick){
+        if (!$isRightClick) {
             return;
         }
 
         $player = $event->getPlayer();
         $held = $event->getItem();
 
-        // Match item type from config (e.g. minecraft:compass)
+        // Match the item from config (e.g., minecraft:compass)
         $expectedId = (string)$this->cfg->getNested("compass-open.item", "minecraft:compass");
         $expectedItem = $this->item($expectedId);
 
-        if($held->getTypeId() !== $expectedItem->getTypeId()){
+        if ($held->getTypeId() !== $expectedItem->getTypeId()) {
             return;
         }
 
         // Optional custom-name check
         $requireName = (bool)$this->cfg->getNested("compass-open.require-custom-name", false);
-        if($requireName){
+        if ($requireName) {
             $need = (string)$this->cfg->getNested("compass-open.custom-name", "§a§lNavigator");
-            if($held->getCustomName() !== $need){
+            if ($held->getCustomName() !== $need) {
                 return;
             }
         }
 
-        // Prevent other menus from opening (like NavigatorCompass)
-        $event->cancel();
-
-        // Open our custom menu
+        // Open the custom menu
         $this->openMainMenu($player);
     }
 
-    private function openMainMenu(Player $player) : void{
+    private function openMainMenu(Player $player): void {
         $menu = InvMenu::create(InvMenu::TYPE_CHEST);
         $menu->setName("§l§bSelector");
 
@@ -113,19 +105,19 @@ final class Main extends PluginBase implements Listener{
         $inv->setItem(14, $this->namedItem($this->item("minecraft:name_tag"), "§eParties", ["§7Coming soon"]));
         $inv->setItem(16, $this->namedItem($this->item("minecraft:compass"), "§aGames", ["§7Open games menu", "", "§eClick"]));
 
-        $menu->setListener(function(InvMenuTransaction $tx) : InvMenuTransactionResult{
+        $menu->setListener(function (InvMenuTransaction $tx): InvMenuTransactionResult {
             $player = $tx->getPlayer();
             $slot = $tx->getAction()->getSlot();
 
-            if($slot === 16){
+            if ($slot === 16) {
                 $msg = (string)$this->cfg->getNested("messages.opening-games", "§aOpening Games…");
-                if($msg !== ""){
+                if ($msg !== "") {
                     $player->sendMessage($msg);
                 }
                 $this->openGamesMenu($player);
-            }elseif($slot === 10 || $slot === 12 || $slot === 14){
+            } elseif ($slot === 10 || $slot === 12 || $slot === 14) {
                 $msg = (string)$this->cfg->getNested("messages.coming-soon", "§7Coming soon!");
-                if($msg !== ""){
+                if ($msg !== "") {
                     $player->sendMessage($msg);
                 }
             }
@@ -136,7 +128,7 @@ final class Main extends PluginBase implements Listener{
         $menu->send($player);
     }
 
-    private function openGamesMenu(Player $player) : void{
+    private function openGamesMenu(Player $player): void {
         $menu = InvMenu::create(InvMenu::TYPE_CHEST);
         $menu->setName("§l§aGames");
 
@@ -153,19 +145,19 @@ final class Main extends PluginBase implements Listener{
         $inv->setItem(15, $this->namedItem($this->item("minecraft:red_bed"), "§cBedWars - Duos", ["§7Coming soon"]));
         $inv->setItem(22, $this->namedItem($this->item("minecraft:arrow"), "§7Back", ["§eReturn to selector"]));
 
-        $menu->setListener(function(InvMenuTransaction $tx) : InvMenuTransactionResult{
+        $menu->setListener(function (InvMenuTransaction $tx): InvMenuTransactionResult {
             $player = $tx->getPlayer();
             $slot = $tx->getAction()->getSlot();
 
-            if($slot === 11){
+            if ($slot === 11) {
                 $player->removeCurrentWindow();
                 $this->transferToConfiguredServer($player, "smp");
-            }elseif($slot === 13 || $slot === 15){
+            } elseif ($slot === 13 || $slot === 15) {
                 $msg = (string)$this->cfg->getNested("messages.coming-soon", "§7Coming soon!");
-                if($msg !== ""){
+                if ($msg !== "") {
                     $player->sendMessage($msg);
                 }
-            }elseif($slot === 22){
+            } elseif ($slot === 22) {
                 $this->openMainMenu($player);
             }
 
@@ -175,15 +167,15 @@ final class Main extends PluginBase implements Listener{
         $menu->send($player);
     }
 
-    private function transferToConfiguredServer(Player $player, string $key) : void{
+    private function transferToConfiguredServer(Player $player, string $key): void {
         $serverName = (string)$this->cfg->getNested("servers.$key", $key);
         $template = (string)$this->cfg->get("transfer-command", "transfer {server}");
         $cmdLine = str_replace("{server}", $serverName, $template);
 
         $base = strtolower(trim(explode(" ", trim($cmdLine))[0] ?? ""));
-        if($base === "" || $this->getServer()->getCommandMap()->getCommand($base) === null){
+        if ($base === "" || $this->getServer()->getCommandMap()->getCommand($base) === null) {
             $fail = (string)$this->cfg->getNested("messages.transfer-failed", "§cTransfer command not found.");
-            if($fail !== ""){
+            if ($fail !== "") {
                 $player->sendMessage($fail);
             }
             return;
@@ -192,17 +184,16 @@ final class Main extends PluginBase implements Listener{
         $this->getServer()->dispatchCommand($player, $cmdLine);
     }
 
-    private function item(string $id) : Item{
+    private function item(string $id): Item {
         $parser = StringToItemParser::getInstance();
         return $parser->parse($id) ?? $parser->parse("minecraft:stone");
     }
 
-    private function namedItem(Item $item, string $name, array $lore = []) : Item{
+    private function namedItem(Item $item, string $name, array $lore = []): Item {
         $item->setCustomName($name);
-        if($lore !== []){
+        if ($lore !== []) {
             $item->setLore($lore);
         }
         return $item;
     }
 }
-
