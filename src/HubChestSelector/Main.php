@@ -11,7 +11,7 @@ use muqsit\invmenu\transaction\InvMenuTransactionResult;
 use pocketmine\command\Command;
 use pocketmine\command\CommandSender;
 use pocketmine\event\Listener;
-use pocketmine\event\player\PlayerInteractEvent; // Correct import for PlayerInteractEvent
+use pocketmine\event\player\PlayerInteractEvent; // Correct namespace for PlayerInteractEvent
 use pocketmine\item\Item;
 use pocketmine\item\StringToItemParser;
 use pocketmine\player\Player;
@@ -50,8 +50,12 @@ final class Main extends PluginBase implements Listener{
 			return;
 		}
 
+		// Right-click detection without isRightClick()
 		$action = $event->getAction();
-		if($action !== PlayerInteractEvent::RIGHT_CLICK_AIR && $action !== PlayerInteractEvent::RIGHT_CLICK_BLOCK){
+		$rcAir = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_AIR") ? PlayerInteractEvent::RIGHT_CLICK_AIR : 3;
+		$rcBlock = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_BLOCK") ? PlayerInteractEvent::RIGHT_CLICK_BLOCK : 1;
+
+		if($action !== $rcAir && $action !== $rcBlock){
 			return;
 		}
 
