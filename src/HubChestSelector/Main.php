@@ -11,7 +11,7 @@ use muqsit\invmenu\transaction\InvMenuTransactionResult;
 use pocketmine\command\Command;
 use pocketmine\command\CommandSender;
 use pocketmine\event\Listener;
-use pocketmine\event\player\PlayerInteractEvent;
+use pocketmine\event\player\PlayerInteractEvent; // Correct import for PlayerInteractEvent
 use pocketmine\item\Item;
 use pocketmine\item\StringToItemParser;
 use pocketmine\player\Player;
@@ -73,7 +73,6 @@ final class Main extends PluginBase implements Listener{
 			}
 		}
 
-		// NOTE: You asked to remove the cancelling, so we do NOT cancel here.
 		$this->openMainMenu($player);
 	}
 
