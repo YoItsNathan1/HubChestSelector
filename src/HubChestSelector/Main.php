@@ -46,29 +46,36 @@ final class Main extends PluginBase implements Listener{
     }
 
     /**
-     * Opens selector on right-click (AIR or BLOCK) of configured item (NavigatorCompass compatible).
+     * IMPORTANT: LOWEST priority so we cancel BEFORE other plugins (NavigatorCompass etc.)
+     * This prevents a different menu opening first.
      *
-     * @priority HIGHEST
-     * @handleCancelled true
+     * @priority LOWEST
      */
     public function onPlayerInteract(PlayerInteractEvent $event) : void{
         if(!(bool)$this->cfg->getNested("compass-open.enabled", true)){
             return;
         }
 
-        // Right-click detection (air OR block) without isRightClick()
+        // Detect right-click air OR block, robust across versions
         $action = $event->getAction();
 
-        $rcAir = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_AIR") ? PlayerInteractEvent::RIGHT_CLICK_AIR : 3;
-        $rcBlock = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_BLOCK") ? PlayerInteractEvent::RIGHT_CLICK_BLOCK : 1;
+        $rightClickAir = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_AIR") ? PlayerInteractEvent::RIGHT_CLICK_AIR : null;
+        $rightClickBlock = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_BLOCK") ? PlayerInteractEvent::RIGHT_CLICK_BLOCK : null;
 
-        if($action !== $rcAir && $action !== $rcBlock){
+        $isRightClick =
+            ($rightClickAir !== null && $action === $rightClickAir) ||
+            ($rightClickBlock !== null && $action === $rightClickBlock) ||
+            // Fallback values used by many builds (covers weird cases where constants aren't present/stubbed)
+            $action === 1 || $action === 3;
+
+        if(!$isRightClick){
             return;
         }
 
         $player = $event->getPlayer();
         $held = $event->getItem();
 
+        // Match item type from config (e.g. minecraft:compass)
         $expectedId = (string)$this->cfg->getNested("compass-open.item", "minecraft:compass");
         $expectedItem = $this->item($expectedId);
 
@@ -76,6 +83,7 @@ final class Main extends PluginBase implements Listener{
             return;
         }
 
+        // Optional custom-name check
         $requireName = (bool)$this->cfg->getNested("compass-open.require-custom-name", false);
         if($requireName){
             $need = (string)$this->cfg->getNested("compass-open.custom-name", "§aNavigator");
@@ -84,8 +92,10 @@ final class Main extends PluginBase implements Listener{
             }
         }
 
-        // Prevent opening chests/doors etc.
+        // Cancel ASAP so other plugins won't react and open their menus
         $event->cancel();
+
+        // Open our selector
         $this->openMainMenu($player);
     }
 
@@ -168,7 +178,6 @@ final class Main extends PluginBase implements Listener{
         $template = (string)$this->cfg->get("transfer-command", "transfer {server}");
         $cmdLine = str_replace("{server}", $serverName, $template);
 
-        // Verify the base command exists on THIS PocketMine backend
         $base = strtolower(trim(explode(" ", trim($cmdLine))[0] ?? ""));
         if($base === "" || $this->getServer()->getCommandMap()->getCommand($base) === null){
             $fail = (string)$this->cfg->getNested("messages.transfer-failed", "§cTransfer command not found.");
@@ -178,7 +187,6 @@ final class Main extends PluginBase implements Listener{
             return;
         }
 
-        // Execute as player so bridge plugins that read sender context work correctly
         $this->getServer()->dispatchCommand($player, $cmdLine);
     }
 
