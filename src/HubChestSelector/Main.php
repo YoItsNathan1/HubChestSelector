@@ -61,10 +61,16 @@ final class Main extends PluginBase implements Listener{
         $action = $event->getAction();
 
         // Detect right-click air or block based on PMMP version compatibility
-        $rcAir = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_AIR") ? PlayerInteractEvent::RIGHT_CLICK_AIR : 3;
-        $rcBlock = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_BLOCK") ? PlayerInteractEvent::RIGHT_CLICK_BLOCK : 1;
+        $rcAir = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_AIR") ? PlayerInteractEvent::RIGHT_CLICK_AIR : null;
+        $rcBlock = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_BLOCK") ? PlayerInteractEvent::RIGHT_CLICK_BLOCK : null;
 
-        if($action !== $rcAir && $action !== $rcBlock){
+        $isRightClick =
+            ($rcAir !== null && $action === $rcAir) ||
+            ($rcBlock !== null && $action === $rcBlock) ||
+            // Fallback values used by many builds (covers weird cases where constants aren't present/stubbed)
+            $action === 1 || $action === 3;
+
+        if(!$isRightClick){
             return;
         }
 
@@ -82,16 +88,16 @@ final class Main extends PluginBase implements Listener{
         // Optional custom-name check
         $requireName = (bool)$this->cfg->getNested("compass-open.require-custom-name", false);
         if($requireName){
-            $need = (string)$this->cfg->getNested("compass-open.custom-name", "§aNavigator");
+            $need = (string)$this->cfg->getNested("compass-open.custom-name", "§a§lNavigator");
             if($held->getCustomName() !== $need){
                 return;
             }
         }
 
-        // Cancel the event to prevent other menus from opening (like NavigatorCompass)
+        // Prevent other menus from opening (like NavigatorCompass)
         $event->cancel();
 
-        // Open the custom menu
+        // Open our custom menu
         $this->openMainMenu($player);
     }
 
@@ -199,3 +205,4 @@ final class Main extends PluginBase implements Listener{
         return $item;
     }
 }
+
