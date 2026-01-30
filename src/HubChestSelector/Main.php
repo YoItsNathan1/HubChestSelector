@@ -50,25 +50,20 @@ final class Main extends PluginBase implements Listener{
      * This prevents a different menu opening first.
      *
      * @priority LOWEST
+     * @handleCancelled true
      */
     public function onPlayerInteract(PlayerInteractEvent $event) : void{
         if(!(bool)$this->cfg->getNested("compass-open.enabled", true)){
             return;
         }
 
-        // Detect right-click air OR block, robust across versions
+        // Right-click detection (both air or block)
         $action = $event->getAction();
 
-        $rightClickAir = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_AIR") ? PlayerInteractEvent::RIGHT_CLICK_AIR : null;
-        $rightClickBlock = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_BLOCK") ? PlayerInteractEvent::RIGHT_CLICK_BLOCK : null;
+        $rcAir = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_AIR") ? PlayerInteractEvent::RIGHT_CLICK_AIR : 3;
+        $rcBlock = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_BLOCK") ? PlayerInteractEvent::RIGHT_CLICK_BLOCK : 1;
 
-        $isRightClick =
-            ($rightClickAir !== null && $action === $rightClickAir) ||
-            ($rightClickBlock !== null && $action === $rightClickBlock) ||
-            // Fallback values used by many builds (covers weird cases where constants aren't present/stubbed)
-            $action === 1 || $action === 3;
-
-        if(!$isRightClick){
+        if($action !== $rcAir && $action !== $rcBlock){
             return;
         }
 
@@ -92,10 +87,10 @@ final class Main extends PluginBase implements Listener{
             }
         }
 
-        // Cancel ASAP so other plugins won't react and open their menus
+        // Cancel the event to prevent other menus from opening (like NavigatorCompass)
         $event->cancel();
 
-        // Open our selector
+        // Open our custom menu
         $this->openMainMenu($player);
     }
 
