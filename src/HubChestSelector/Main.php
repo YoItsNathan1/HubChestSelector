@@ -30,7 +30,7 @@ final class Main extends PluginBase implements Listener {
             InvMenuHandler::register($this);
         }
 
-        $this->getServer()->getPluginManager()->registerEvents($this, $this);
+        $this->getServer()->getPluginManager()->registerEvents($this, $this);  // Ensure events are registered with proper priority
     }
 
     public function onCommand(CommandSender $sender, Command $command, string $label, array $args): bool {
@@ -46,9 +46,10 @@ final class Main extends PluginBase implements Listener {
     }
 
     /**
-     * Handle player interaction with RIGHT_CLICK_AIR and RIGHT_CLICK_BLOCK.
-     * @priority LOWEST ensures this is processed before other plugins.
-     * @handleCancelled true to stop other plugins from opening menus.
+     * Handles right-click events (both air and block)
+     * This will trigger only when a valid compass is held.
+     * @priority NORMAL ensures other plugins can also handle this.
+     * @handleCancelled true
      */
     public function onPlayerInteract(PlayerInteractEvent $event): void {
         if (!(bool)$this->cfg->getNested("compass-open.enabled", true)) {
