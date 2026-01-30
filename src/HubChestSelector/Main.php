@@ -46,20 +46,19 @@ final class Main extends PluginBase implements Listener {
     }
 
     /**
-     * Handle player interaction with both RIGHT_CLICK_AIR and RIGHT_CLICK_BLOCK.
-     *
-     * @priority LOWEST
-     * @handleCancelled true
+     * Handle player interaction with RIGHT_CLICK_AIR and RIGHT_CLICK_BLOCK.
+     * @priority LOWEST ensures this is processed before other plugins.
+     * @handleCancelled true to stop other plugins from opening menus.
      */
     public function onPlayerInteract(PlayerInteractEvent $event): void {
         if (!(bool)$this->cfg->getNested("compass-open.enabled", true)) {
             return;
         }
 
-        // Right-click detection for both air and block
+        // Detect right-click air or block
         $action = $event->getAction();
-        $rcAir = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_AIR") ? PlayerInteractEvent::RIGHT_CLICK_AIR : null;
-        $rcBlock = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_BLOCK") ? PlayerInteractEvent::RIGHT_CLICK_BLOCK : null;
+        $rcAir = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_AIR") ? PlayerInteractEvent::RIGHT_CLICK_AIR : 3;
+        $rcBlock = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_BLOCK") ? PlayerInteractEvent::RIGHT_CLICK_BLOCK : 1;
 
         $isRightClick =
             ($rcAir !== null && $action === $rcAir) ||
@@ -72,7 +71,7 @@ final class Main extends PluginBase implements Listener {
         $player = $event->getPlayer();
         $held = $event->getItem();
 
-        // Match the item from config (e.g., minecraft:compass)
+        // Match item type from config (e.g., minecraft:compass)
         $expectedId = (string)$this->cfg->getNested("compass-open.item", "minecraft:compass");
         $expectedItem = $this->item($expectedId);
 
@@ -88,6 +87,9 @@ final class Main extends PluginBase implements Listener {
                 return;
             }
         }
+
+        // Cancel the event to prevent other plugins (e.g., NavigatorCompass) from responding
+        $event->cancel();
 
         // Open the custom menu
         $this->openMainMenu($player);
