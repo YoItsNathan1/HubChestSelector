@@ -18,186 +18,166 @@ use pocketmine\player\Player;
 use pocketmine\plugin\PluginBase;
 use pocketmine\utils\Config;
 
-final class Main extends PluginBase implements Listener {
+final class Main extends PluginBase implements Listener{
 
-    private Config $cfg;
+	private Config $cfg;
 
-    protected function onEnable(): void {
-        $this->saveDefaultConfig();
-        $this->cfg = $this->getConfig();
+	protected function onEnable() : void{
+		$this->saveDefaultConfig();
+		$this->cfg = $this->getConfig();
 
-        if (!InvMenuHandler::isRegistered()) {
-            InvMenuHandler::register($this);
-        }
+		if(!InvMenuHandler::isRegistered()){
+			InvMenuHandler::register($this);
+		}
 
-        // Ensure event registration works properly
-        $this->getServer()->getPluginManager()->registerEvents($this, $this);
-    }
+		$this->getServer()->getPluginManager()->registerEvents($this, $this);
+	}
 
-    public function onCommand(CommandSender $sender, Command $command, string $label, array $args): bool {
-        if ($command->getName() === "hub") {
-            if (!$sender instanceof Player) {
-                $sender->sendMessage("Run this in-game.");
-                return true;
-            }
-            $this->openMainMenu($sender);
-            return true;
-        }
-        return false;
-    }
+	public function onCommand(CommandSender $sender, Command $command, string $label, array $args) : bool{
+		if($command->getName() === "hub"){
+			if(!$sender instanceof Player){
+				$sender->sendMessage("Run this in-game.");
+				return true;
+			}
+			$this->openMainMenu($sender);
+			return true;
+		}
+		return false;
+	}
 
-    /**
-     * Handles right-click events (both air and block)
-     * This will trigger only when a valid compass is held.
-     * @priority NORMAL ensures other plugins can also handle this.
-     * @handleCancelled true
-     */
-    public function onPlayerInteract(PlayerInteractEvent $event): void {
-        if (!(bool)$this->cfg->getNested("compass-open.enabled", true)) {
-            return;
-        }
+	public function onPlayerInteract(PlayerInteractEvent $event) : void{
+		if(!(bool)$this->cfg->getNested("compass-open.enabled", true)){
+			return;
+		}
 
-        // Detect right-click air or block
-        $action = $event->getAction();
-        $rcAir = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_AIR") ? PlayerInteractEvent::RIGHT_CLICK_AIR : 3;
-        $rcBlock = defined(PlayerInteractEvent::class . "::RIGHT_CLICK_BLOCK") ? PlayerInteractEvent::RIGHT_CLICK_BLOCK : 1;
+		$action = $event->getAction();
+		if($action !== PlayerInteractEvent::RIGHT_CLICK_AIR && $action !== PlayerInteractEvent::RIGHT_CLICK_BLOCK){
+			return;
+		}
 
-        $isRightClick =
-            ($rcAir !== null && $action === $rcAir) ||
-            ($rcBlock !== null && $action === $rcBlock);
+		$player = $event->getPlayer();
+		$held = $event->getItem();
 
-        if (!$isRightClick) {
-            return;
-        }
+		$expectedId = (string)$this->cfg->getNested("compass-open.item", "minecraft:compass");
+		$expectedItem = $this->item($expectedId);
 
-        $player = $event->getPlayer();
-        $held = $event->getItem();
+		if($held->getTypeId() !== $expectedItem->getTypeId()){
+			return;
+		}
 
-        // Match item type from config (e.g., minecraft:compass)
-        $expectedId = (string)$this->cfg->getNested("compass-open.item", "minecraft:compass");
-        $expectedItem = $this->item($expectedId);
+		$requireName = (bool)$this->cfg->getNested("compass-open.require-custom-name", false);
+		if($requireName){
+			$need = (string)$this->cfg->getNested("compass-open.custom-name", "§a§lNavigator");
+			if($held->getCustomName() !== $need){
+				return;
+			}
+		}
 
-        if ($held->getTypeId() !== $expectedItem->getTypeId()) {
-            return;
-        }
+		// NOTE: You asked to remove the cancelling, so we do NOT cancel here.
+		$this->openMainMenu($player);
+	}
 
-        // Optional custom-name check
-        $requireName = (bool)$this->cfg->getNested("compass-open.require-custom-name", false);
-        if ($requireName) {
-            $need = (string)$this->cfg->getNested("compass-open.custom-name", "§a§lNavigator");
-            if ($held->getCustomName() !== $need) {
-                return;
-            }
-        }
+	private function openMainMenu(Player $player) : void{
+		$menu = InvMenu::create(InvMenu::TYPE_CHEST);
+		$menu->setName("§l§bSelector");
 
-        // Cancel the event to prevent other plugins (e.g., NavigatorCompass) from responding
-        $event->cancel();
+		$inv = $menu->getInventory();
+		$inv->clearAll();
 
-        // Open the custom menu
-        $this->openMainMenu($player);
-    }
+		$inv->setItem(10, $this->namedItem($this->item("minecraft:player_head"), "§bProfile", ["§7Coming soon"]));
+		$inv->setItem(12, $this->namedItem($this->item("minecraft:book"), "§dFriends", ["§7Coming soon"]));
+		$inv->setItem(14, $this->namedItem($this->item("minecraft:name_tag"), "§eParties", ["§7Coming soon"]));
+		$inv->setItem(16, $this->namedItem($this->item("minecraft:compass"), "§aGames", ["§7Open games menu", "", "§eClick"]));
 
-    private function openMainMenu(Player $player): void {
-        $menu = InvMenu::create(InvMenu::TYPE_CHEST);
-        $menu->setName("§l§bSelector");
+		$menu->setListener(function(InvMenuTransaction $tx) : InvMenuTransactionResult{
+			$player = $tx->getPlayer();
+			$slot = $tx->getAction()->getSlot();
 
-        $inv = $menu->getInventory();
-        $inv->clearAll();
+			if($slot === 16){
+				$msg = (string)$this->cfg->getNested("messages.opening-games", "§aOpening Games…");
+				if($msg !== ""){
+					$player->sendMessage($msg);
+				}
+				$this->openGamesMenu($player);
+			}elseif($slot === 10 || $slot === 12 || $slot === 14){
+				$msg = (string)$this->cfg->getNested("messages.coming-soon", "§7Coming soon!");
+				if($msg !== ""){
+					$player->sendMessage($msg);
+				}
+			}
 
-        $inv->setItem(10, $this->namedItem($this->item("minecraft:player_head"), "§bProfile", ["§7Coming soon"]));
-        $inv->setItem(12, $this->namedItem($this->item("minecraft:book"), "§dFriends", ["§7Coming soon"]));
-        $inv->setItem(14, $this->namedItem($this->item("minecraft:name_tag"), "§eParties", ["§7Coming soon"]));
-        $inv->setItem(16, $this->namedItem($this->item("minecraft:compass"), "§aGames", ["§7Open games menu", "", "§eClick"]));
+			return $tx->discard();
+		});
 
-        $menu->setListener(function (InvMenuTransaction $tx): InvMenuTransactionResult {
-            $player = $tx->getPlayer();
-            $slot = $tx->getAction()->getSlot();
+		$menu->send($player);
+	}
 
-            if ($slot === 16) {
-                $msg = (string)$this->cfg->getNested("messages.opening-games", "§aOpening Games…");
-                if ($msg !== "") {
-                    $player->sendMessage($msg);
-                }
-                $this->openGamesMenu($player);
-            } elseif ($slot === 10 || $slot === 12 || $slot === 14) {
-                $msg = (string)$this->cfg->getNested("messages.coming-soon", "§7Coming soon!");
-                if ($msg !== "") {
-                    $player->sendMessage($msg);
-                }
-            }
+	private function openGamesMenu(Player $player) : void{
+		$menu = InvMenu::create(InvMenu::TYPE_CHEST);
+		$menu->setName("§l§aGames");
 
-            return $tx->discard();
-        });
+		$inv = $menu->getInventory();
+		$inv->clearAll();
 
-        $menu->send($player);
-    }
+		$inv->setItem(11, $this->namedItem(
+			$this->item("minecraft:grass_block"),
+			"§aSMP",
+			["§7Survival world", "", "§eClick to join"]
+		));
 
-    private function openGamesMenu(Player $player): void {
-        $menu = InvMenu::create(InvMenu::TYPE_CHEST);
-        $menu->setName("§l§aGames");
+		$inv->setItem(13, $this->namedItem($this->item("minecraft:red_bed"), "§cBedWars - Solos", ["§7Coming soon"]));
+		$inv->setItem(15, $this->namedItem($this->item("minecraft:red_bed"), "§cBedWars - Duos", ["§7Coming soon"]));
+		$inv->setItem(22, $this->namedItem($this->item("minecraft:arrow"), "§7Back", ["§eReturn to selector"]));
 
-        $inv = $menu->getInventory();
-        $inv->clearAll();
+		$menu->setListener(function(InvMenuTransaction $tx) : InvMenuTransactionResult{
+			$player = $tx->getPlayer();
+			$slot = $tx->getAction()->getSlot();
 
-        $inv->setItem(11, $this->namedItem(
-            $this->item("minecraft:grass_block"),
-            "§aSMP",
-            ["§7Survival world", "", "§eClick to join"]
-        ));
+			if($slot === 11){
+				$player->removeCurrentWindow();
+				$this->transferToConfiguredServer($player, "smp");
+			}elseif($slot === 13 || $slot === 15){
+				$msg = (string)$this->cfg->getNested("messages.coming-soon", "§7Coming soon!");
+				if($msg !== ""){
+					$player->sendMessage($msg);
+				}
+			}elseif($slot === 22){
+				$this->openMainMenu($player);
+			}
 
-        $inv->setItem(13, $this->namedItem($this->item("minecraft:red_bed"), "§cBedWars - Solos", ["§7Coming soon"]));
-        $inv->setItem(15, $this->namedItem($this->item("minecraft:red_bed"), "§cBedWars - Duos", ["§7Coming soon"]));
-        $inv->setItem(22, $this->namedItem($this->item("minecraft:arrow"), "§7Back", ["§eReturn to selector"]));
+			return $tx->discard();
+		});
 
-        $menu->setListener(function (InvMenuTransaction $tx): InvMenuTransactionResult {
-            $player = $tx->getPlayer();
-            $slot = $tx->getAction()->getSlot();
+		$menu->send($player);
+	}
 
-            if ($slot === 11) {
-                $player->removeCurrentWindow();
-                $this->transferToConfiguredServer($player, "smp");
-            } elseif ($slot === 13 || $slot === 15) {
-                $msg = (string)$this->cfg->getNested("messages.coming-soon", "§7Coming soon!");
-                if ($msg !== "") {
-                    $player->sendMessage($msg);
-                }
-            } elseif ($slot === 22) {
-                $this->openMainMenu($player);
-            }
+	private function transferToConfiguredServer(Player $player, string $key) : void{
+		$serverName = (string)$this->cfg->getNested("servers.$key", $key);
+		$template = (string)$this->cfg->get("transfer-command", "transfer {server}");
+		$cmdLine = str_replace("{server}", $serverName, $template);
 
-            return $tx->discard();
-        });
+		$base = strtolower(trim(explode(" ", trim($cmdLine))[0] ?? ""));
+		if($base === "" || $this->getServer()->getCommandMap()->getCommand($base) === null){
+			$fail = (string)$this->cfg->getNested("messages.transfer-failed", "§cTransfer command not found.");
+			if($fail !== ""){
+				$player->sendMessage($fail);
+			}
+			return;
+		}
 
-        $menu->send($player);
-    }
+		$this->getServer()->dispatchCommand($player, $cmdLine);
+	}
 
-    private function transferToConfiguredServer(Player $player, string $key): void {
-        $serverName = (string)$this->cfg->getNested("servers.$key", $key);
-        $template = (string)$this->cfg->get("transfer-command", "transfer {server}");
-        $cmdLine = str_replace("{server}", $serverName, $template);
+	private function item(string $id) : Item{
+		$parser = StringToItemParser::getInstance();
+		return $parser->parse($id) ?? $parser->parse("minecraft:stone");
+	}
 
-        $base = strtolower(trim(explode(" ", trim($cmdLine))[0] ?? ""));
-        if ($base === "" || $this->getServer()->getCommandMap()->getCommand($base) === null) {
-            $fail = (string)$this->cfg->getNested("messages.transfer-failed", "§cTransfer command not found.");
-            if ($fail !== "") {
-                $player->sendMessage($fail);
-            }
-            return;
-        }
-
-        $this->getServer()->dispatchCommand($player, $cmdLine);
-    }
-
-    private function item(string $id): Item {
-        $parser = StringToItemParser::getInstance();
-        return $parser->parse($id) ?? $parser->parse("minecraft:stone");
-    }
-
-    private function namedItem(Item $item, string $name, array $lore = []): Item {
-        $item->setCustomName($name);
-        if ($lore !== []) {
-            $item->setLore($lore);
-        }
-        return $item;
-    }
+	private function namedItem(Item $item, string $name, array $lore = []) : Item{
+		$item->setCustomName($name);
+		if($lore !== []){
+			$item->setLore($lore);
+		}
+		return $item;
+	}
 }
