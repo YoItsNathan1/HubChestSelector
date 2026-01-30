@@ -30,6 +30,7 @@ final class Main extends PluginBase implements Listener {
             InvMenuHandler::register($this);
         }
 
+        // Correct event priority registration
         $this->getServer()->getPluginManager()->registerEvents($this, $this); // Register events with NORMAL priority
     }
 
