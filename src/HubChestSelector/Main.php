@@ -30,8 +30,8 @@ final class Main extends PluginBase implements Listener {
             InvMenuHandler::register($this);
         }
 
-        // Correct event priority registration
-        $this->getServer()->getPluginManager()->registerEvents($this, $this); // Register events with NORMAL priority
+        // Ensure event registration works properly
+        $this->getServer()->getPluginManager()->registerEvents($this, $this);
     }
 
     public function onCommand(CommandSender $sender, Command $command, string $label, array $args): bool {
